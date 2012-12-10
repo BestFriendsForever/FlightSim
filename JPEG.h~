@@ -1,0 +1,18 @@
+
+
+#include "jpeglib.h"
+
+
+
+tImageJPG *Load_JPEG(const char *strfilename);
+
+void Decompress_JPEG(jpeg_decompress_struct* cInfo, tImageJPG *pImgData);
+
+void JPEG_Texture(UINT textureArray[], LPSTR strFileName, int ID);
+
+
+
+#endif
+
+
+

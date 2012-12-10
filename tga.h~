@@ -1,0 +1,55 @@
+/**
+ * This module contains functions to read/manipulate targa files (*.tga).
+ */
+#ifndef _TGA_H_
+#define _TGA_H_
+
+#ifdef _WIN32
+#include <windows.h>
+#include <GL/gl.h>
+#include <GL/glu.h>
+#include <GL/glext.h>
+#include <GL/glut.h>
+#else
+#include <OpenGL/gl.h>
+#include <OpenGL/glu.h>
+#include <OpenGL/glext.h>
+#include <Glut/glut.h>
+#endif
+
+/*
+ * Definitions
+ */
+
+/*
+ * Constants
+ */
+#define	TGA_ERROR_FILE_OPEN			-5 
+#define TGA_ERROR_READING_FILE		-4 
+#define TGA_ERROR_INDEXED_COLOR		-3 
+#define TGA_ERROR_MEMORY			-2 
+#define TGA_ERROR_COMPRESSED_FILE	-1 
+#define TGA_OK						 0 
+
+/*
+ * Targa structure
+ */
+typedef struct 
+{
+	int status; 
+	unsigned char type, pixelDepth; 
+	short int width, height; 
+	unsigned char *imageData;
+	GLint components;
+	GLenum format;
+} tgaInfo; 
+
+/*
+ * Prototypes
+ */
+tgaInfo* tgaLoad(char *filename); 
+void tgaRGBtoGreyscale(tgaInfo *info); 
+void tgaDestroy(tgaInfo *info);
+
+/* End of file -------------------------------------------------------------- */
+#endif
