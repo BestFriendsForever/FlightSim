@@ -13,9 +13,9 @@
 #include <GL/glu.h>
 #include <GL/glut.h>
 #else
-#include <OpenGL/gl.h>
-#include <OpenGL/glu.h>
-#include <Glut/glut.h>
+#include <GL/gl.h>
+#include <GL/glu.h>
+#include <GL/glut.h>
 #endif
 #include "camera.h"
 
@@ -135,6 +135,8 @@ int cmrIsTurnCtrlKey(unsigned char key)
 	}
 	return 0;
 }
+
+
 
 /*
  * Processes the control key (modifies the camera configuration 

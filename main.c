@@ -1,26 +1,27 @@
-/**
- * This module is part of the "Terrains" series.
- * Module No.: 056
- *
- * Wireframe/solid model & effect of the scaling parameters.
- * Lights.
- */
+/************************************************************
+*	CMPUT 370 Final Project					*
+*************************************************************
+*	Project Name			: Flight Sim						*
+*	Project Description		: Badass Flight Sim		*
+*	Project Type			: OpenGL						*
+*	Author					: Jeff Thomas		*
+*	Date					: 12.11.2012					*
+
+************************************************************/
+
+
 #include <stdlib.h>
-#ifdef _WIN32
-#include <windows.h>
-#include <GL/gl.h>
-#include <GL/glu.h>
-#include <GL/glut.h>
-#else
-#include <GL/gl.h>
-#include <GL/glu.h>
-#include <GL/glut.h>
-#endif
+
+#include "GL/gl.h"
+#include "GL/glu.h"
+#include "GL/glut.h"
 #include "camera.h"
 #include "map.h"
 #include "alg.h"
 #include <stdio.h>
-
+#include "SOIL.h"
+#include "textures/explosion.c"
+#include "textures/godzilla.c"
 
 
 
@@ -51,13 +52,16 @@ enum
 const int WINDOW_WIDTH = 1024;
 const int WINDOW_HEIGHT = 768;
 const GLfloat BASIC_ANGLE = 5.0f;
+const int ANIM_SPEED = 80;
+
 
 /*
  * Global variables
  */
 
+
 /* Scaling factors */
-int DISTANCE_FACTOR = 90;
+int DISTANCE_FACTOR = 150;
 int HEIGHT_FACTOR = 5;
 
 /* Aspect ratio of the window */
@@ -71,6 +75,7 @@ int WORLD_SIZE;
 
 /* The map */
 unsigned char **mapData;
+signed int **rawData;
 int mapWidth;
 int mapHeight;
 
@@ -87,11 +92,13 @@ M3DVector4f lightAmbient;
 M3DVector4f lightDiffuse;
 M3DVector4f	lightPos;
 
-GLuint   texture[3];
 
 /* Flight Flags  */
 int speed, firstPerson = 1;
-int altView = 0;
+int altView, crashed = 0;
+float angle;
+
+GLuint texture[8];  //holds two event textures and the skybox
 
 /*
  * Protoypes
@@ -121,6 +128,8 @@ void outOfBoundsTest();
 void firstPersonMode();
 void altitudeMode();
 void displayImage(int texture);
+void TimerFunction(int value);
+signed int** readRaw(char* fileName);
 
 /*
  * Function definitions
@@ -174,7 +183,10 @@ void initialize()
 	float pos;
 	
 	/* Create the map */
-	mapData = mapCreate("earthgs.tga", &mapWidth, &mapHeight);
+	//mapData = mapCreate("earthgs.tga", &mapWidth, &mapHeight);
+	rawData = readRaw("Test.int.raw");
+	mapWidth = 1600;
+	mapHeight = 1600;
 	
 	/* Print report */
 	printf("\n\nTerrain Modeling\n");
@@ -211,23 +223,90 @@ void initialize()
 	/* Calculate the model coordinates */
 	calcModelCoordinates();
 
-	/* Read in and create texture */
-		
-	
-	
-	
+
+	/* Load up our textures */
+	LoadGLTextures();
+
+
 	
 	
 }
+ 
 
-void LoadGLTextures()                                    // Load Bitmaps And Convert To Textures
+//reads in a raw file of i32-bit signed integers and returns a map of them.
+signed int** readRaw(char *rawFilename){
+	
+    int i,j;
+    signed int **data;
+    data = (signed int **)calloc(1600, sizeof(signed int*));
+    for (i=0; i<1600; i++) {
+        data[i] = (signed int *)calloc(1600, sizeof(signed int));
+    }
+
+    FILE *file;
+
+    //The following code will read in our RAW file
+    file = fopen( rawFilename, "r");
+ 
+
+ if(data){
+    for( i = 0; i< 1600; i++){
+	for( j = 0; j <1600;j++){
+		    fread(&data[i][j], 4, 1, file);
+		    int b0 = (data[i][j] >> 24) & 0xFF;
+		    int b1 = (data[i][j] >> 16) & 0xFF;
+		    int b2 = (data[i][j] >> 8) & 0xFF;
+		    int b3 = data[i][j] & 0xFF;
+		    data[i][j] =(b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
+	}
+    }
+  } 
+
+    fclose( file );
+
+    return data;
+}
+
+
+//at the moment I could only get one texture displaying on for boht models/skybox and special in-game events like crashing or going off world boundaries.  the one texture would always be drawn where another was to be and I couldn't remedy it.  It will be something to play with so I can get a fully functional skybox working.  the commented texture building lines below are my various early efforts that all met disaster.  I left them in for historical purposes.
+
+//As I amateurly struggled with textures i did not implement my skybox.  sad times.  if you easily can see where I've made my misstep in regards to multiple textures educate me so I can bring joy to the masses.
+void LoadGLTextures()                                    
 {
     
+ //texture[0] is explosion, texture[1] is godzilla, 2-7 skybox
+
+       glGenTextures(8, texture);
+
  
- 
+	glBindTexture(GL_TEXTURE_2D, texture[0]);
+       //texture[0] = SOIL_load_OGL_texture("textures/explosion.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_INVERT_Y);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, explosionTexture.width, explosionTexture.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, explosionTexture.pixel_data);
+    	//gluBuild2DMipmaps(GL_TEXTURE_2D, explosionTexture.bytes_per_pixel, explosionTexture.width, explosionTexture.height, GL_RGBA, GL_UNSIGNED_BYTE, explosionTexture.pixel_data);
+
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+    	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
 
 
-}
+
+	glBindTexture(GL_TEXTURE_2D, texture[1]);
+   	//texture[1] = SOIL_load_OGL_texture("textures/godzilla.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_INVERT_Y);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, godzillaTexture.width, godzillaTexture.height, 0, GL_RGB, GL_UNSIGNED_BYTE, godzillaTexture.pixel_data);
+    	//gluBuild2DMipmaps(GL_TEXTURE_2D, godzillaTexture.bytes_per_pixel, godzillaTexture.width, godzillaTexture.height, GL_RGB, GL_UNSIGNED_BYTE, godzillaTexture.pixel_data);
+
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+    	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+
+
+	texture[2] = SOIL_load_OGL_texture("textures/skyboxTop.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_INVERT_Y);
+	texture[3] = SOIL_load_OGL_texture("textures/skyboxBottom.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_INVERT_Y);
+texture[4] = SOIL_load_OGL_texture("textures/skyboxEast.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_INVERT_Y);
+texture[5] = SOIL_load_OGL_texture("textures/skyboxNorth.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_INVERT_Y);
+texture[6] = SOIL_load_OGL_texture("textures/skyboxWest.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_INVERT_Y);
+texture[7] = SOIL_load_OGL_texture("textures/skyboxSouth.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_INVERT_Y);
+  	
+  
+} 
  
 
 
@@ -249,19 +328,21 @@ void finalize()
 }
 
 
+
 /*
  * Resets the camera.
  */
 void resetCamera(Camera *camera)
 {
-	M3DVector4f k = { 0.0f, 0.0f, -1.0f, 0.0f };
+    M3DVector4f k = { 0.0f, 0.0f, -1.0f, 0.0f };
 	
     /* Initialize the camera */
-    m3dLoadVector3f(camera->position, 402, 3200.0f, 5263);
-    m3dLoadVector3f(camera->target, 0.0f, 3000.0f, 0);
+    m3dLoadVector3f(camera->position, 0.0f, 20000.0f, 90000.0f);
+    m3dLoadVector3f(camera->target, 0.0f, 20000.0f, 0.0f);
 
     m3dLoadIdentity44f(camera->basis);
-	m3dSetMatrixColumn44f(camera->basis, k, 2);
+    m3dSetMatrixColumn44f(camera->basis, k, 2);
+    cmrLookAt(&theCamera);
 }
 
 
@@ -295,7 +376,8 @@ void calcModelCoordinates()
 	for (i=0; i<mapHeight; i++) {
 		for (j=0; j<mapWidth; j++) {
 			X[i][j] = j*DISTANCE_FACTOR + dx;
-			Y[i][j] = mapData[i][j]*HEIGHT_FACTOR;
+			//Y[i][j] = mapData[i][j]*HEIGHT_FACTOR;
+			Y[i][j] = rawData[i][j]*HEIGHT_FACTOR/100;
 			Z[i][j] = i*DISTANCE_FACTOR + dz;
 			
 			Nx[i][j] = Ny[i][j] = Nz[i][j] = 0.0f;
@@ -342,10 +424,14 @@ void paintModel()
 	glPopMatrix();
 	
 	/* Draw the terrain */
-	glColor3f(0.8f, 0.6f, 0.6f);
+	
 	for (i=0; i<mapHeight - 1; i++) {
 		glBegin(GL_TRIANGLE_STRIP);	
 		for (j=0; j<mapWidth; j++) {
+			if(Y[i][j] < 300) glColor3f(0,0,1);
+			if(Y[i][j] > 300 && Y[i][j] < 3000) glColor3f(0.0f, 0.7f, 0.0f);
+			if(Y[i][j] > 3000 && Y[i][j] < 14000) glColor3f(0.5f, 0.35f, 0.05f);
+			if(Y[i][j] > 14000) glColor3f(1,1,1);
 			
 			glNormal3f(Nx[i][j], Ny[i][j], Nz[i][j]);
 			glVertex3f(X[i][j], Y[i][j], Z[i][j]);
@@ -366,21 +452,49 @@ void paintModel()
 //handles the collision detection of our plane and the terrain
 void crashTest(){
 
-	int i, j, crashed;
-        crashed = 0;
+	int i, j;
+
 	for (i=0; i<mapHeight; i++) {
 	    for (j=0; j<mapWidth; j++) {
-		   if(Y[i][j] >= theCamera.position[1]){
+		   if(Y[i][j] >= theCamera.position[1] && abs(X[i][j] - theCamera.position[0]) < 300 && abs(Z[i][j] - theCamera.position[2]) < 300){
 			crashed = 1;
 		   }
 			
 	     }
 	}
-	if(crashed == 1){
-		displayImage(0);
-	}
 	
-	glutPostRedisplay();
+	if(crashed == 1){
+
+		speed = 0;
+		glEnable(GL_TEXTURE_2D);	
+		glBindTexture(GL_TEXTURE_2D, texture[0]);  //choose explosion texture
+		gluBuild2DMipmaps(GL_TEXTURE_2D, explosionTexture.bytes_per_pixel, explosionTexture.width, explosionTexture.height, GL_RGBA, GL_UNSIGNED_BYTE, explosionTexture.pixel_data);
+		
+		theCamera.position[0] = 4000.0f;
+		theCamera.position[1] = -32000.f;
+		theCamera.position[2] = 52000.f;
+		theCamera.target[0] = 4000.0f;
+		theCamera.target[1] = -32000.0f;
+		theCamera.target[2] = 10000.0f;
+		m3dLoadIdentity44f(theCamera.basis);
+		cmrLookAt(&theCamera);
+		glColor3f(1.0, 1.0, 1.0);
+		glBegin (GL_QUADS);
+			glTexCoord2f (0.0, 1.0);
+			glVertex3f (0.0, -36000.0, 10000.0);
+			glTexCoord2f (1.0, 1.0);
+			glVertex3f (8000.0, -36000.0, 10000.0);
+			glTexCoord2f (1.0, 0.0);
+			glVertex3f (8000.0, -28000.0, 10000.0);
+			glTexCoord2f (0.0, 0.0);
+			glVertex3f (0.0, -28000.0, 10000.0);
+		glEnd (); 
+		glDisable(GL_TEXTURE_2D);
+		glutPostRedisplay(); 
+		
+	}
+
+	
 }
 
 
@@ -388,51 +502,53 @@ void crashTest(){
 
 //displays the out of bounds image if we've traveled past the world edge
 void outOfBoundsTest(){
-	
-   /*********************************************************************************/
 
-	if(theCamera.position[0] <=   X[0][0] || theCamera.position[0] >=  X[mapHeight-1][mapWidth-1] || theCamera.position[1] <=   Y[0][0] || theCamera.position[1] >=  Y[mapHeight-1][mapWidth-1] || theCamera.position[2] <=   Z[0][0] || theCamera.position[2] >=  Z[mapHeight-1][mapWidth-1] ){
-		displayImage(1);
+	if(theCamera.position[0] <  X[0][0] || theCamera.position[0] >  mapHeight*DISTANCE_FACTOR || theCamera.position[1] >  50000 || theCamera.position[2] <=   Z[0][0] || theCamera.position[2] >=  mapWidth*DISTANCE_FACTOR ){
+		crashed = 1;
 	}
-	
-	glutPostRedisplay();
+	if(crashed == 1){
+		
+		speed = 0;
+		
+		glEnable(GL_TEXTURE_2D);
+ 		glBindTexture(GL_TEXTURE_2D, texture[1]);
+
+		//i initially had either the explosion and godzilla textures being mapped to same quad depending on the event.  As the explosion texture always overwrote godzilla, I assumed making seperate quads at different locations for each would be an amateur remedy.  Alas it was not.  As the below code and that in crashTest() is similar, if I found a way to draw multiple textures the similar code would be migrated into a function.
+
+		theCamera.position[0] = 4000.0f;
+		theCamera.position[1] = -62000.f;
+		theCamera.position[2] = 19000.f;
+		theCamera.target[0] = 4000.0f;
+		theCamera.target[1] = -62000.0f;
+		theCamera.target[2] = 10000.0f;
+		m3dLoadIdentity44f(theCamera.basis);
+		cmrLookAt(&theCamera);
+		glColor3f(1.0, 1.0, 1.0);
+		glBegin (GL_QUADS);
+			glTexCoord2f (0.0, 1.0);
+			glVertex3f (0.0, -66000.0, 10000.0);
+			glTexCoord2f (1.0, 1.0);
+			glVertex3f (8000.0, -66000.0, 10000.0);
+			glTexCoord2f (1.0, 0.0);
+			glVertex3f (8000.0, -58000.0, 10000.0);
+			glTexCoord2f (0.0, 0.0);
+			glVertex3f (0.0, -58000.0, 10000.0);
+		glEnd (); 
+		glDisable(GL_TEXTURE_2D);
+		glutPostRedisplay();  
+	}
+    
+		
 }	
 
-
-
-
-//display the given texture in the entire window
-void displayImage(int tex){
-
-	speed = 0;
-	firstPerson = 0;
-
-	glBindTexture(GL_TEXTURE_2D, texture[tex]);
-    	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
-    	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-	theCamera.position[0] = 4000.0f;
-	theCamera.position[1] = -12000.f;
-	theCamera.position[2] = 17200.f;
-	theCamera.target[0] = 4000.0f;
-	theCamera.target[1] = -12000.0f;
-	theCamera.target[2] = 10000.0f;
-	glBegin (GL_QUADS);
-		glTexCoord2f (0.0, 0.0);
-		glVertex3f (0.0, -16000.0, 10000.0);
-		glTexCoord2f (1.0, 0.0);
-		glVertex3f (8000.0, -16000.0, 10000.0);
-		glTexCoord2f (1.0, 1.0);
-		glVertex3f (8000.0, -8000.0, 10000.0);
-		glTexCoord2f (0.0, 1.0);
-		glVertex3f (0.0, -8000.0, 10000.0);
-	glEnd (); 
-
-}
 
 //set the world to be explored in first person
 void firstPersonMode(){
 	firstPerson = 1;
 	altView = 0;
+	speed = 0;
+	angle = 0;
+	crashed = 0;
 	resetCamera(&theCamera);
 	glutPostRedisplay();
 }
@@ -441,16 +557,22 @@ void firstPersonMode(){
 //sets the window to display a rotating view of the whole map
 void altitudeMode(){
 	firstPerson = 0;
+	speed = 0;
 	altView = 1;
-    	theCamera.position[0] = WORLD_SIZE / 2.0f;
-	theCamera.position[1] = WORLD_SIZE;
-	theCamera.position[2] = 2*WORLD_SIZE;
+	angle = 0;
+	crashed = 0;
 
-    	theCamera.target[0] = 0.0f;
-	theCamera.target[1] = 0.0f;
-	theCamera.target[2] = 0.0f;
+    	theCamera.position[0] = 147000.0f;
+	theCamera.position[1] = 48400;
+	theCamera.position[2] = 46000;
+    	theCamera.target[0] = 14000;
+	theCamera.target[1] = 25000.0f;
+	theCamera.target[2] = 20000.0f;
 	
-	cmrTurn(&theCamera, X_LOCAL_AXIS, -25.0f);	
+        m3dLoadIdentity44f(theCamera.basis);
+	cmrTurn(&theCamera, X_LOCAL_AXIS, -10.0f);
+
+	cmrLookAt(&theCamera);
 	glutPostRedisplay();
 }
 
@@ -471,27 +593,32 @@ void RenderScene()
 
     /* Perform collision and out of bounds testing if in First Person Mode*/
     if(firstPerson == 1){
+	crashTest();
+	outOfBoundsTest();
+	cmrMove(&theCamera, Z_LOCAL_AXIS, speed);
+	if(crashed == 0){
+	   char speedInfo[20] = "Speed: ";  
+	   char speedText[6];
+           snprintf(speedText, sizeof speedText, "%d", speed);
+           strcat(speedInfo, speedText);
+	   strcat(speedInfo, "  M/S ");
+       	   drawText(10, glutGet(GLUT_WINDOW_HEIGHT) - 60, speedInfo, 1.0f, 1.0f, 1.0f);
+	}
 
-    	crashTest();
-	//outOfBoundsTest();
-     }	
-
-    /* Rotate our terrain if in Altitude mode */
-    if(altView == 1){
-	
     }
 
 
-    /* Display text info */
+    /* Display position info */
+  if(crashed == 0){	
     char displayInfo[80] = "Current Position - X: ";
-    char distance[6];
+    char distance[7];
     snprintf(distance, sizeof distance, "%f", theCamera.position[0]);
     strcat(displayInfo, distance);
     strcat(displayInfo, " Y: ");
-    snprintf(distance, sizeof distance, "%f", theCamera.position[1]);
+    snprintf(distance, 6, "%f", theCamera.position[1]);
     strcat(displayInfo, distance);
     strcat(displayInfo, " Z: ");
-    snprintf(distance, sizeof distance, "%f", theCamera.position[2]);
+    snprintf(distance, 7, "%f", theCamera.position[2]);
     strcat(displayInfo, distance);
     drawText(10, glutGet(GLUT_WINDOW_HEIGHT) - 20, displayInfo, 1.0f, 1.0f, 1.0f);
 
@@ -502,10 +629,13 @@ void RenderScene()
     snprintf(distance, sizeof distance, "%d", DISTANCE_FACTOR);
     strcat(factorInfo, distance);
     drawText(10, glutGet(GLUT_WINDOW_HEIGHT) - 40, factorInfo, 1.0f, 1.0f, 1.0f);
+  }
 	
     /* Update the screen */
-    glutSwapBuffers();
+    glutSwapBuffers();	
 }
+
+
 
 /*
  * Initializes the rendering context.
@@ -545,6 +675,8 @@ void SetupRC()
 	glEnable(GL_NORMALIZE); 
 }
 
+
+
 /*
  * Resizes the window.
  * @param w Width of the window.
@@ -571,6 +703,9 @@ void ChangeSize(GLsizei w, GLsizei h)
     cmrLookAt(&theCamera);
 }
 
+
+
+
 /*
  * Sets the perspective projection.
  * @param aspectRatio Aspect ratio of the window.
@@ -593,6 +728,8 @@ void setPerspectiveProjection(GLdouble aspectRatio)
 	glLoadIdentity();
 } 
 
+
+
 /*
  * Callback used for key pressed event.
  * @param key ASCII code of the key.
@@ -601,21 +738,30 @@ void setPerspectiveProjection(GLdouble aspectRatio)
  */
 void KeyPressedStd(unsigned char key, int x, int y)
 {
-    /* Check the key pressed */
+        /* Check the key pressed */
 	if (key >= '1' && key <= '9') {
 		BASIC_DIMENSION = (key - '0')*(WORLD_SIZE / 100);
 	}
-    else if (key == 'r') {
+    	else if (key == 'r') {
         /* Reset visualization parameters */
 		firstPersonMode();
-		altView = 0;
+		
 				
-    }
+        }
 	else if (cmrIsCtrlKey(key)) {
 		/* Process camera ctrl key */
 		if(firstPerson == 1){
-			cmrProcessCtrlKey(&theCamera, key, 
-			cmrIsMoveCtrlKey(key) ? BASIC_DIMENSION : BASIC_ANGLE);
+			if(key == 'w'){
+				speed += 10;
+			}
+			else if(key == 's'){
+				speed += -10;
+			}
+			else{
+				cmrProcessCtrlKey(&theCamera, key, 
+				cmrIsMoveCtrlKey(key) ? BASIC_DIMENSION : BASIC_ANGLE);
+			}
+	
 		}
 	}
 	else if (key == '+') {
@@ -657,8 +803,10 @@ void KeyPressedStd(unsigned char key, int x, int y)
 		return;
     }
 	cmrLookAt(&theCamera);	
-    glutPostRedisplay();
+    
 }
+
+
 
 /*
  * Menu callback.
@@ -696,6 +844,8 @@ void SelectFromMenu(int id)
 	glutPostRedisplay();
 }
 
+
+
 /*
  * Creates the popup menu and its items.
  * @return Id of the popup menu.
@@ -716,6 +866,7 @@ int BuildPopupMenu()
 		
 	return menu;
 }
+
 
 /* Draws the given string at the given window x,y coordinaties with the given RGB color */
 void drawText(GLint x, GLint y, char* s, GLfloat r, GLfloat g, GLfloat b)
@@ -747,6 +898,30 @@ void drawText(GLint x, GLint y, char* s, GLfloat r, GLfloat g, GLfloat b)
 }
 
 
+//Controls the animation depending on the current mode, First Person or Altitude.
+void TimerFunction(int value)
+{
+	/* Redraw the scene with new coordinates */
+        if(altView == 1){
+	    angle = 1.0f;	
+	    cmrTurnAround(&theCamera, Y_GLOBAL_AXIS, angle);		
+        }	
+
+	if(firstPerson == 1){
+		if(speed < 0){
+		   speed = 0;
+		}
+		if(speed > 300){
+		   speed = 300;
+		}
+	}
+	
+	cmrLookAt(&theCamera);
+	glutPostRedisplay();
+	glutTimerFunc(ANIM_SPEED,TimerFunction, 1);
+
+}
+
 
 
 /*
@@ -758,23 +933,24 @@ void drawText(GLint x, GLint y, char* s, GLfloat r, GLfloat g, GLfloat b)
 int main (int argc, char **argv)
 {
     /* Initialize the app */
-    glEnable(GL_TEXTURE_2D);
     initialize();
-    LoadGLTextures();
 	
     /* Initialization process */
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
     glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
-    glutCreateWindow("Terrain Modeling");
+    glutCreateWindow("Flight Simulator 9000");
+	
     
     glutReshapeFunc(ChangeSize);
     glutDisplayFunc(RenderScene);
+    glutTimerFunc(ANIM_SPEED,TimerFunction, 1);
     glutKeyboardFunc(KeyPressedStd);
-	BuildPopupMenu(); 
-	glutAttachMenu(GLUT_RIGHT_BUTTON);
+    BuildPopupMenu(); 
+    glutAttachMenu(GLUT_RIGHT_BUTTON);
 	
     SetupRC();
+    
 	
     /* "Main" loop */
     glutMainLoop();

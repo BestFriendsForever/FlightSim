@@ -4,18 +4,12 @@
 #ifndef _TGA_H_
 #define _TGA_H_
 
-#ifdef _WIN32
-#include <windows.h>
-#include <GL/gl.h>
-#include <GL/glu.h>
-#include <GL/glext.h>
-#include <GL/glut.h>
-#else
-#include <GL/gl.h>
-#include <GL/glu.h>
-#include <GL/glext.h>
-#include <GL/glut.h>
-#endif
+
+#include "GL/gl.h"
+#include "GL/glu.h"
+#include "GL/glext.h"
+#include "GL/glut.h"
+
 
 /*
  * Definitions

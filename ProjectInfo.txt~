@@ -1,0 +1,17 @@
+This Project was a solo adventure into the world of OpenGL.  It did not achieve the greatness that I had wanted due to tons of difficulties throwing up multiple textured objects, though it more than fulfilled the class requirement.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ had wanted to add a skybox and a implement a Godzilla-themed interrupt should you leave the map's boundaries, but alas it was not meant to be.  As OpenGl doesn't support audio inclusion and is simply a display library the inclusion of plane engine

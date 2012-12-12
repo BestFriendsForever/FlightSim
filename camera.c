@@ -7,16 +7,10 @@
 
 #include <stdlib.h>
 #include <ctype.h>
-#ifdef _WIN32
-#include <windows.h>
-#include <GL/gl.h>
-#include <GL/glu.h>
-#include <GL/glut.h>
-#else
-#include <GL/gl.h>
-#include <GL/glu.h>
-#include <GL/glut.h>
-#endif
+#include "GL/gl.h"
+#include "GL/glu.h"
+#include "GL/glut.h"
+
 #include "camera.h"
 
 /*
@@ -135,6 +129,8 @@ int cmrIsTurnCtrlKey(unsigned char key)
 	}
 	return 0;
 }
+
+
 
 /*
  * Processes the control key (modifies the camera configuration 
